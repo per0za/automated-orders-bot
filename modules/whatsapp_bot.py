@@ -1,11 +1,18 @@
 import os
 import time
+
 from selenium import webdriver
+
 from selenium.webdriver.firefox.service import Service  
 from selenium.webdriver.firefox.options import Options
+
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
 from webdriver_manager.firefox import GeckoDriverManager
 
 class WhatsAppBot:
@@ -46,19 +53,49 @@ class WhatsAppBot:
         except Exception as e:
             print(f"❌ Erro ao tentar abrir o grupo. Verifique o nome no .env. Erro: {e}")
 
-    def escutar_mensagens(self) -> str | None:
+    def buscar_pedidos_em_lote(self, marcador: str) -> list:
+        pedidos_encontrados = []
         try:
-            mensagens = self.driver.find_elements(By.CSS_SELECTOR, "div.message-in")
+            bolhas = self.driver.find_elements(By.CSS_SELECTOR, "div.message-in, div.message-out")
             
-            if len(mensagens) > 0:
-                ultima_bolha = mensagens[-1]
-                texto = ultima_bolha.text 
+            indice_do_marcador = -1
 
-                if "Comprador:" in texto and texto != self.ultima_mensagem_lida:
-                    self.ultima_mensagem_lida = texto
-                    return texto
+            for i, bolha in enumerate(bolhas):
+                if marcador in bolha.text:
+                    indice_do_marcador = i 
+
+            bolhas_novas = bolhas[indice_do_marcador + 1 :] if indice_do_marcador != -1 else bolhas
+
+            for bolha in bolhas_novas:
+                try:
+                    container = bolha.find_element(By.CSS_SELECTOR, "span.copyable-text")
+                    spans = container.find_elements(By.XPATH, "./span")
+                    linhas = [span.text.strip() for span in spans if span.text.strip() != ""]
+                    texto_limpo = "\n".join(linhas)
+                    
+                    if "COMPRADOR:" in texto_limpo:
+                        pedidos_encontrados.append(texto_limpo)
+                except Exception:
+                    pass
                     
         except Exception as e:
-            print(f"⚠️ Pequeno erro ao ler mensagens (ignorando): {e}")
-        
-        return None
+            print(f"⚠️ Erro ao buscar pedidos: {e}")
+            
+        return pedidos_encontrados
+
+    def enviar_mensagem(self, texto: str):
+        """Digita e envia uma mensagem no grupo."""
+        try:
+            caixa_de_texto = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
+            )
+
+            acao = ActionChains(self.driver)
+            acao.click(on_element=caixa_de_texto)
+            acao.send_keys(texto)
+            acao.send_keys(Keys.ENTER)
+            acao.perform()
+
+            time.sleep(2)
+        except Exception as e:
+            print(f"❌ Erro ao tentar enviar o marcador: {e}")
