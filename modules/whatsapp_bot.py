@@ -73,7 +73,7 @@ class WhatsAppBot:
                     linhas = [span.text.strip() for span in spans if span.text.strip() != ""]
                     texto_limpo = "\n".join(linhas)
                     
-                    if "COMPRADOR:" in texto_limpo:
+                    if "CLIENTE:" in texto_limpo.upper():
                         pedidos_encontrados.append(texto_limpo)
                 except Exception:
                     pass
@@ -84,7 +84,6 @@ class WhatsAppBot:
         return pedidos_encontrados
 
     def enviar_mensagem(self, texto: str):
-        """Digita e envia uma mensagem no grupo."""
         try:
             caixa_de_texto = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]'))
