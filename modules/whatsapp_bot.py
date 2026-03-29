@@ -37,7 +37,7 @@ class WhatsAppBot:
 
         print("⏳ Aguardando login e carregamento (Pode demorar um pouco na primeira vez)...")
         WebDriverWait(self.driver, 60).until(
-            EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="3"]'))
+            EC.presence_of_element_located((By.XPATH, "//span[@aria-label='WhatsApp' and @data-icon='wa-wordmark-refreshed']"))
         )
         print("✅ WhatsApp carregado!")
 
