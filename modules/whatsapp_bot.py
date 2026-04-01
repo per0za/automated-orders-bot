@@ -42,6 +42,7 @@ class WhatsAppBot:
             EC.presence_of_element_located((By.XPATH, "//span[@aria-label='WhatsApp' and @data-icon='wa-wordmark-refreshed']"))
         )
         logger.info("WhatsApp carregado!")
+        self.driver.minimize_window()
 
     def abrir_grupo(self):
         logger.info(f"Buscando o grupo: {self.grupo_alvo}")

@@ -56,13 +56,19 @@ def _montar_relatorio_whatsapp(recibos_novos: list, recibos_pagamentos: list) ->
     
     if recibos_novos:
         linhas.append(f"\n📝 {len(recibos_novos)} Novo(s) Pedido(s):")
-        for r in recibos_novos:
-            linhas.append(f"- Pedido {r['id']} ({r.get('qtd_produtos', 1)} itens) de {r['cliente']}.")
+        for i, r in enumerate(recibos_novos):
+            if i == 0:
+                linhas.append(f"- Pedido {r['id']} ({r.get('qtd_produtos', 1)} itens) de {r['cliente']}.")
+            else:
+                linhas.append(f"Pedido {r['id']} ({r.get('qtd_produtos', 1)} itens) de {r['cliente']}.")
             
     if recibos_pagamentos:
         linhas.append(f"\n💰 {len(recibos_pagamentos)} Atualização(ões) de Pagamento:")
-        for r in recibos_pagamentos:
-            linhas.append(f"- Pedido {r['id']} atualizado para: {r['status']} ({r['valor']}).")
+        for i, r in enumerate(recibos_pagamentos):
+            if i == 0:
+                linhas.append(f"- Pedido {r['id']} atualizado para: {r['status']} ({r['valor']}).")
+            else:
+                linhas.append(f"Pedido {r['id']} atualizado para: {r['status']} ({r['valor']}).")
             
     return "\n".join(linhas)
         
@@ -81,14 +87,14 @@ def main():
     bot.iniciar()
     bot.abrir_grupo()
     
-    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 15 segundos...")
+    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 30 segundos...")
     logger.info("Pressione 'Ctrl + C' no terminal a qualquer momento para desligar o robô.")
     
     while True:
         try:
             processar_pedidos_pendentes(bot, planilha)
             
-            time.sleep(15)
+            time.sleep(30)
             
         except KeyboardInterrupt:
             logger.info("Robô desligado pelo usuário com sucesso.")
@@ -96,7 +102,7 @@ def main():
             
         except Exception as e:
             logger.warning(f"Erro inesperado durante o monitoramento: {e}")
-            time.sleep(15)
+            time.sleep(30)
 
 if __name__ == "__main__":
     main()
