@@ -15,6 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from webdriver_manager.firefox import GeckoDriverManager
 
+from modules.logger_config  import logger
+
 class WhatsAppBot:
     def __init__(self):
         self.grupo_alvo = os.getenv("WHATSAPP_GROUP_NAME")
@@ -32,29 +34,31 @@ class WhatsAppBot:
         self.ultima_mensagem_lida = ""
 
     def iniciar(self):
-        print("🌐 Abrindo o WhatsApp Web...")
+        logger.info("Abrindo o WhatsApp Web...")
         self.driver.get("https://web.whatsapp.com/")
 
-        print("⏳ Aguardando login e carregamento (Pode demorar um pouco na primeira vez)...")
+        logger.info("Aguardando login e carregamento (Pode demorar um pouco na primeira vez)...")
         WebDriverWait(self.driver, 60).until(
             EC.presence_of_element_located((By.XPATH, "//span[@aria-label='WhatsApp' and @data-icon='wa-wordmark-refreshed']"))
         )
-        print("✅ WhatsApp carregado!")
+        logger.info("WhatsApp carregado!")
 
     def abrir_grupo(self):
-        print(f"🔍 Buscando o grupo: {self.grupo_alvo}")
+        logger.info(f"Buscando o grupo: {self.grupo_alvo}")
         try:
             elemento_grupo = WebDriverWait(self.driver, 15).until(
                 EC.presence_of_element_located((By.XPATH, f"//span[@title='{self.grupo_alvo}']"))
             )
             elemento_grupo.click()
-            print(f"✅ Grupo '{self.grupo_alvo}' aberto!")
+            logger.info(f"Grupo '{self.grupo_alvo}' aberto!")
             time.sleep(2)
         except Exception as e:
-            print(f"❌ Erro ao tentar abrir o grupo. Verifique o nome no .env. Erro: {e}")
+            logger.warning(f"Erro ao tentar abrir o grupo. Verifique o nome no .env. Erro: {e}")
 
     def buscar_pedidos_em_lote(self, marcador: str) -> list:
+        logger.info("Iniciando a busca por pedidos...")
         pedidos_encontrados = []
+
         try:
             bolhas = self.driver.find_elements(By.CSS_SELECTOR, "div.message-in, div.message-out")
             
@@ -62,7 +66,7 @@ class WhatsAppBot:
 
             for i, bolha in enumerate(bolhas):
                 if marcador in bolha.text:
-                    indice_do_marcador = i 
+                    indice_do_marcador = i
 
             bolhas_novas = bolhas[indice_do_marcador + 1 :] if indice_do_marcador != -1 else bolhas
 
@@ -73,13 +77,14 @@ class WhatsAppBot:
                     linhas = [span.text.strip() for span in spans if span.text.strip() != ""]
                     texto_limpo = "\n".join(linhas)
                     
-                    if "CLIENTE:" in texto_limpo.upper():
+                    if "CLIENTE:" in texto_limpo.upper() or "PEDIDO:" in texto_limpo.upper():
                         pedidos_encontrados.append(texto_limpo)
-                except Exception:
-                    pass
+
+                except Exception as e:
+                    logger.warning(f"Algo inesperado aconteceu: {e}")
                     
         except Exception as e:
-            print(f"⚠️ Erro ao buscar pedidos: {e}")
+            logger.warning(f"Erro ao buscar pedidos: {e}")
             
         return pedidos_encontrados
 
@@ -96,5 +101,8 @@ class WhatsAppBot:
             acao.perform()
 
             time.sleep(2)
+
+            logger.info("Mensagem enviada com sucesso!")
+            
         except Exception as e:
-            print(f"❌ Erro ao tentar enviar o marcador: {e}")
+            logger.warning(f"Erro ao tentar enviar o marcador: {e}")
