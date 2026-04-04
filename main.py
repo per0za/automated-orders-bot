@@ -33,7 +33,7 @@ def main():
         try:
             processar_pedidos_pendentes(bot, planilha)
             
-            time.sleep(10)
+            time.sleep(600)
             
         except KeyboardInterrupt:
             logger.info("Robô desligado pelo usuário com sucesso.")
@@ -41,7 +41,7 @@ def main():
             
         except Exception as e:
             logger.warning(f"Erro inesperado durante o monitoramento: {e}")
-            time.sleep(10)
+            time.sleep(600)
 
 
 def processar_pedidos_pendentes(bot: WhatsAppBot, planilha: SheetsService):
