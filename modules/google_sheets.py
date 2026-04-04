@@ -1,9 +1,10 @@
 import os
 import gspread
 from google.oauth2.service_account import Credentials
-from modules.logger_config  import logger
 
+from modules.logger_config  import logger
 from modules.parser import converter_para_float, formatar_moeda
+
 
 class SheetsService:
     def __init__(self):
@@ -43,17 +44,60 @@ class SheetsService:
 
         self.sheet.update_cells(celulas_para_atualizar, value_input_option="USER_ENTERED") #type: ignore
         
+        self.atualizar_status_novo_pedido(novo_id)
+        
         return [{
             "id": novo_id,
             "cliente": lista_de_dicionarios[0].get("CLIENTE", "Desconhecido"),
             "data": lista_de_dicionarios[0].get("DATA DO PEDIDO", "Desconhecida"),
             "qtd_produtos": len(lista_de_dicionarios)
         }]
-    
+
 
     def atualizar_pagamento(self, id_pedido: str, novo_valor_entrada: str) -> dict | None:        
+        dados = self._obter_dados_base_planilha(id_pedido)
+        if not dados:
+            return None
+            
+        linhas_do_pedido, indices, soma_valor_total, entrada_atual = dados
+            
+        valor_pago_nesta_mensagem = converter_para_float(novo_valor_entrada)
+        entrada_acumulada = entrada_atual + valor_pago_nesta_mensagem
+        novo_status = "Pago" if entrada_acumulada >= soma_valor_total else "Adiantamento"
+
+        entrada_acumulada_formatada = formatar_moeda(str(entrada_acumulada))
+        celulas = self._preparar_celulas_pagamento(linhas_do_pedido, indices, novo_status, entrada_acumulada_formatada)
+        self.sheet.update_cells(celulas, value_input_option="USER_ENTERED") #type: ignore
+        
+        return {"id": id_pedido, "status": novo_status, "valor": entrada_acumulada_formatada}
+    
+
+    def atualizar_status_novo_pedido(self, id_pedido: str) -> dict | None:        
+        dados = self._obter_dados_base_planilha(id_pedido)
+        if not dados:
+            return None
+            
+        linhas_do_pedido, indices, soma_valor_total, entrada_atual = dados
+        
+        if entrada_atual >= soma_valor_total:
+            novo_status = "Pago"
+        elif entrada_atual <= 0:
+            novo_status = "Devendo"
+        else:
+            novo_status = "Adiantamento"
+
+        entrada_acumulada_formatada = formatar_moeda(str(entrada_atual))
+        celulas = self._preparar_celulas_pagamento(linhas_do_pedido, indices, novo_status, entrada_acumulada_formatada)
+        self.sheet.update_cells(celulas, value_input_option="USER_ENTERED") #type: ignore
+        
+        return {"id": id_pedido, "status": novo_status, "valor": entrada_acumulada_formatada}
+    
+
+    def _obter_dados_base_planilha(self, id_pedido: str) -> tuple | None:
         todos_os_dados = self.sheet.get_all_values()
+
         if not todos_os_dados or len(todos_os_dados) < 2:
+            logger.info(f"Nenhuma informação recebida para o pedido {id_pedido}!")
             return None
             
         cabecalhos = [c.strip().upper() for c in todos_os_dados[0]]
@@ -66,20 +110,11 @@ class SheetsService:
         linhas_do_pedido, soma_valor_total, entrada_atual = self._buscar_linhas_e_total(todos_os_dados, id_pedido, indices)
         
         if not linhas_do_pedido:
+            logger.warning("Não foi possível realizar a busca pela atualização...")
             return None
-            
-        valor_pago_nesta_mensagem = converter_para_float(novo_valor_entrada)
-        entrada_acumulada = entrada_atual + valor_pago_nesta_mensagem
 
-        novo_status = "Pago" if entrada_acumulada >= soma_valor_total else "Adiantamento"
+        return linhas_do_pedido, indices, soma_valor_total, entrada_atual
 
-        entrada_acumulada_formatada = formatar_moeda(str(entrada_acumulada))
-
-        celulas = self._preparar_celulas_pagamento(linhas_do_pedido, indices, novo_status, entrada_acumulada_formatada)
-        self.sheet.update_cells(celulas, value_input_option="USER_ENTERED") #type: ignore
-        
-        return {"id": id_pedido, "status": novo_status, "valor": entrada_acumulada_formatada}
-    
 
     def _obter_indices_financeiros(self, cabecalhos: list) -> dict | None:
         colunas_necessarias = ["ID", "VALOR TOTAL", "VALOR ENTRADA", "STATUS"]
@@ -95,15 +130,13 @@ class SheetsService:
         }
 
     def _buscar_linhas_e_total(self, todos_os_dados: list, id_pedido: str, indices: dict) -> tuple:
-        from modules.parser import converter_para_float
-        
         linhas_encontradas = []
         soma_total = 0.0
         entrada_atual = 0.0
         id_limpo = id_pedido.strip().upper()
         
         for num_linha, linha_dados in enumerate(todos_os_dados):
-            if num_linha == 0: continue # Pula o cabeçalho
+            if num_linha == 0: continue
             
             if len(linha_dados) > indices["id"] and linha_dados[indices["id"]].strip().upper() == id_limpo:
                 linhas_encontradas.append(num_linha + 1)
@@ -141,6 +174,7 @@ class SheetsService:
             return f"DDL-{numero + 1:05d}"
         except ValueError:
             return f"DDL-{len(valores_id):05d}"
+            
 
     def _preparar_celulas(self, lista_de_dicionarios: list, linha_inicial: int) -> list:
         celulas = []

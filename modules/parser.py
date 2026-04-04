@@ -1,5 +1,5 @@
 from datetime import datetime
-from modules.logger_config  import logger
+
 
 def formatar_moeda(valor_str: str) -> str:
     if not valor_str or valor_str.strip() == "": return ""
@@ -21,6 +21,34 @@ def converter_para_float(valor_str: str) -> float:
         return float(numero_limpo)
     except ValueError:
         return 0.0
+    
+
+def parse_pedido(texto_bruto: str) -> list:
+    dados_base = _extrair_dados_base(texto_bruto)
+    
+    if "CLIENTE" not in dados_base:
+        return []
+
+    dados_base["DATA DO PEDIDO"] = [datetime.now().strftime("%d/%m/%Y")]
+
+    return _construir_linhas_pedido(dados_base)
+
+
+def parse_pagamento(texto_bruto: str) -> dict | None:    
+    linhas = texto_bruto.split('\n')
+    dados = {}
+    for linha in linhas:
+        if ":" in linha:
+            partes = linha.split(":", 1)
+            chave = partes[0].strip().upper()
+            valor = partes[1].strip()
+            if chave == "VALOR ENTRADA": 
+                valor = formatar_moeda(valor)
+            dados[chave] = valor
+
+    if "PEDIDO" in dados and "VALOR ENTRADA" in dados:
+        return {"id_pedido": dados["PEDIDO"], "valor_pago": dados["VALOR ENTRADA"]}
+    return None
 
 
 def _extrair_dados_base(texto_bruto: str) -> dict:
@@ -56,38 +84,7 @@ def _construir_linhas_pedido(dados_base: dict) -> list:
                 valor = formatar_moeda(valor)
                 
             linha_atual[chave] = valor
-            
-        valor_num = converter_para_float(linha_atual.get("VALOR ENTRADA", ""))
-        linha_atual["STATUS"] = "Adiantamento" if valor_num > 0 else "Devendo"
-                
+        
         pedidos_finais.append(linha_atual)
         
     return pedidos_finais
-
-
-def parse_pedido(texto_bruto: str) -> list:
-    dados_base = _extrair_dados_base(texto_bruto)
-    
-    if "CLIENTE" not in dados_base:
-        return []
-
-    dados_base["DATA DO PEDIDO"] = [datetime.now().strftime("%d/%m/%Y")]
-
-    return _construir_linhas_pedido(dados_base)
-
-
-def parse_pagamento(texto_bruto: str) -> dict | None:
-    linhas = texto_bruto.split('\n')
-    dados = {}
-    for linha in linhas:
-        if ":" in linha:
-            partes = linha.split(":", 1)
-            chave = partes[0].strip().upper()
-            valor = partes[1].strip()
-            if chave == "VALOR ENTRADA": 
-                valor = formatar_moeda(valor)
-            dados[chave] = valor
-
-    if "PEDIDO" in dados and "VALOR ENTRADA" in dados:
-        return {"id_pedido": dados["PEDIDO"], "valor_pago": dados["VALOR ENTRADA"]}
-    return None

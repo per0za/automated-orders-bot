@@ -7,7 +7,42 @@ from modules.google_sheets import SheetsService
 from modules.parser import parse_pedido, parse_pagamento
 from modules.logger_config  import logger
 
+
 MARCADOR_DE_CORTE = "Pedidos processados e enviados para a planilha!"
+
+
+def main():
+    logger.info("Iniciando a automação de pedidos...")
+    load_dotenv()
+    
+    try:
+        planilha = SheetsService()
+        bot = WhatsAppBot()
+        
+    except Exception as e:
+        logger.warning(f"Erro fatal ao iniciar: {e}")
+        return
+
+    bot.iniciar()
+    bot.abrir_grupo()
+    
+    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 10 minutos...")
+    logger.info("Pressione 'Ctrl + C' no terminal a qualquer momento para desligar o robô.")
+    
+    while True:
+        try:
+            processar_pedidos_pendentes(bot, planilha)
+            
+            time.sleep(10)
+            
+        except KeyboardInterrupt:
+            logger.info("Robô desligado pelo usuário com sucesso.")
+            break
+            
+        except Exception as e:
+            logger.warning(f"Erro inesperado durante o monitoramento: {e}")
+            time.sleep(10)
+
 
 def processar_pedidos_pendentes(bot: WhatsAppBot, planilha: SheetsService):
     logger.info("Iniciando o processo de registro e processamento de pedidos!")
@@ -71,38 +106,8 @@ def _montar_relatorio_whatsapp(recibos_novos: list, recibos_pagamentos: list) ->
                 linhas.append(f"Pedido {r['id']} atualizado para: {r['status']} ({r['valor']}).")
             
     return "\n".join(linhas)
-        
 
-def main():
-    logger.info("Iniciando a automação de pedidos...")
-    load_dotenv()
-    
-    try:
-        planilha = SheetsService()
-        bot = WhatsAppBot()
-    except Exception as e:
-        logger.warning(f"Erro fatal ao iniciar: {e}")
-        return
 
-    bot.iniciar()
-    bot.abrir_grupo()
-    
-    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 30 segundos...")
-    logger.info("Pressione 'Ctrl + C' no terminal a qualquer momento para desligar o robô.")
-    
-    while True:
-        try:
-            processar_pedidos_pendentes(bot, planilha)
-            
-            time.sleep(30)
-            
-        except KeyboardInterrupt:
-            logger.info("Robô desligado pelo usuário com sucesso.")
-            break
-            
-        except Exception as e:
-            logger.warning(f"Erro inesperado durante o monitoramento: {e}")
-            time.sleep(30)
 
 if __name__ == "__main__":
     main()
