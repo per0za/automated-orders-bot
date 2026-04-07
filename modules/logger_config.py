@@ -1,5 +1,5 @@
 import logging
-from logging.handlers import TimedRotatingFileHandler # <-- Importação nova aqui!
+from logging.handlers import TimedRotatingFileHandler
 import os
 from pathlib import Path
 
