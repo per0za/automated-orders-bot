@@ -73,7 +73,7 @@ class WhatsAppBot:
 
             for bolha in bolhas_novas:
                 try:
-                    container = bolha.find_element(By.CSS_SELECTOR, "span.copyable-text")
+                    container = bolha.find_element(By.XPATH, ".//span[@data-testid='selectable-text']")
                     spans = container.find_elements(By.XPATH, "./span")
                     linhas = [span.text.strip() for span in spans if span.text.strip() != ""]
                     texto_limpo = "\n".join(linhas)
