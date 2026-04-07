@@ -26,14 +26,14 @@ def main():
     bot.iniciar()
     bot.abrir_grupo()
     
-    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 10 minutos...")
+    logger.info("Monitoramento ativo! O robô vai vigiar novos pedidos a cada 5 minutos...")
     logger.info("Pressione 'Ctrl + C' no terminal a qualquer momento para desligar o robô.")
     
     while True:
         try:
             processar_pedidos_pendentes(bot, planilha)
-            
-            time.sleep(600)
+
+            time.sleep(300)
             
         except KeyboardInterrupt:
             logger.info("Robô desligado pelo usuário com sucesso.")
@@ -41,7 +41,8 @@ def main():
             
         except Exception as e:
             logger.warning(f"Erro inesperado durante o monitoramento: {e}")
-            time.sleep(600)
+            
+            time.sleep(10)
 
 
 def processar_pedidos_pendentes(bot: WhatsAppBot, planilha: SheetsService):
