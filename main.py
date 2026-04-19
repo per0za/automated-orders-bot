@@ -33,7 +33,8 @@ def main():
         try:
             processar_pedidos_pendentes(bot, planilha)
 
-            time.sleep(300)
+            # time.sleep(300)
+            time.sleep(5)
             
         except KeyboardInterrupt:
             logger.info("Robô desligado pelo usuário com sucesso.")
@@ -67,8 +68,11 @@ def processar_pedidos_pendentes(bot: WhatsAppBot, planilha: SheetsService):
 def _processar_mensagens(mensagens: list, planilha: SheetsService) -> tuple:
     recibos_novos = []
     recibos_pagamentos = []
+
+    logger.debug(f"[_processar_mensagens] Mensagens à serem processadas: {mensagens}")
     
     for texto in mensagens:
+        logger.debug(f"[_processar_mensagens] Registro dos textos: {texto}")
         texto_upper = texto.upper()
         
         if "CLIENTE:" in texto_upper:
@@ -83,7 +87,37 @@ def _processar_mensagens(mensagens: list, planilha: SheetsService) -> tuple:
                 recibo_pagamento = planilha.atualizar_pagamento(dados_pagamento["id_pedido"], dados_pagamento["valor_pago"])
                 if recibo_pagamento:
                     recibos_pagamentos.append(recibo_pagamento)
-                    
+        
+        elif "PAGOU" in texto_upper:
+            dados_pagamento = parse_pagamento(texto)
+
+            if dados_pagamento:
+                valor_pago = float(dados_pagamento["valor_pago"])
+                nome_cliente = dados_pagamento["cliente"]
+
+                pagamentos_pendentes = planilha.buscar_ids_abertos_com_saldo(dados_pagamento["cliente"])
+                logger.debug(f"[_processar_mensagens] Resultado da busca de pedidos pendentes: {pagamentos_pendentes}")
+
+                if not pagamentos_pendentes:
+                    logger.info("Nenhum pedido em aberto para esse cliente...")
+
+                for id_pedido, valor_devendo in pagamentos_pendentes.items():
+                    if valor_pago <= 0:
+                        break
+
+                    valor_a_aplicar = min(valor_pago, valor_devendo)
+                    valor_pago -= valor_a_aplicar
+
+                    logger.debug(f"[_processar_mensagens] Dados para abatimento da dívida: {valor_a_aplicar} e {valor_pago}")
+                    logger.info(f"Abatendo R$ {valor_a_aplicar} do pedido {id_pedido}...")
+
+                    recibo_pagamento = planilha.atualizar_pagamento(id_pedido, str(valor_a_aplicar))
+                    if recibo_pagamento:
+                        recibos_pagamentos.append(recibo_pagamento)
+
+                if valor_pago > 0:
+                    logger.info(f"O cliente {nome_cliente} pagou a mais! Sobrou R$ {valor_pago} de crédito.")
+
     return recibos_novos, recibos_pagamentos
 
 

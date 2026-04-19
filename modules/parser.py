@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from modules.logger_config import logger
 
 def formatar_moeda(valor_str: str) -> str:
     if not valor_str or valor_str.strip() == "": return ""
@@ -38,6 +38,7 @@ def parse_pagamento(texto_bruto: str) -> dict | None:
     linhas = texto_bruto.split('\n')
     dados = {}
     for linha in linhas:
+        logger.debug(f"[parse_pagamento] Dados para ajustar: {linha}")
         if ":" in linha:
             partes = linha.split(":", 1)
             chave = partes[0].strip().upper()
@@ -45,9 +46,18 @@ def parse_pagamento(texto_bruto: str) -> dict | None:
             if chave == "VALOR ENTRADA": 
                 valor = formatar_moeda(valor)
             dados[chave] = valor
+        else:
+            linha = linha.upper()
+            pagamento = linha.split("PAGOU")
+            logger.debug(f"[parse_pagamento] Dados separados: {pagamento}")
+            dados["CLIENTE"] = pagamento[0].strip()
+            dados["VALOR ENTRADA"] = pagamento[1].strip()
 
     if "PEDIDO" in dados and "VALOR ENTRADA" in dados:
         return {"id_pedido": dados["PEDIDO"], "valor_pago": dados["VALOR ENTRADA"]}
+    elif "CLIENTE" in dados and "VALOR ENTRADA" in dados:
+        return {"cliente": dados["CLIENTE"], "valor_pago": dados["VALOR ENTRADA"] }
+    
     return None
 
 

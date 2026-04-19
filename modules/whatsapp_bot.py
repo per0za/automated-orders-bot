@@ -42,7 +42,7 @@ class WhatsAppBot:
             EC.presence_of_element_located((By.XPATH, "//span[@aria-label='WhatsApp' and @data-icon='wa-wordmark-refreshed']"))
         )
         logger.info("WhatsApp carregado!")
-        self.driver.minimize_window()
+        # self.driver.minimize_window()
 
     def abrir_grupo(self):
         logger.info(f"Buscando o grupo: {self.grupo_alvo}")
@@ -77,8 +77,10 @@ class WhatsAppBot:
                     spans = container.find_elements(By.XPATH, "./span")
                     linhas = [span.text.strip() for span in spans if span.text.strip() != ""]
                     texto_limpo = "\n".join(linhas)
+
+                    logger.debug(f"[buscar_pedidos_em_lote] Registro de mensagens: {texto_limpo}")
                     
-                    if "CLIENTE:" in texto_limpo.upper() or "PEDIDO:" in texto_limpo.upper():
+                    if "CLIENTE:" in texto_limpo.upper() or "PEDIDO:" in texto_limpo.upper() or "PAGOU" in texto_limpo.upper():
                         pedidos_encontrados.append(texto_limpo)
 
                 except Exception as e:

@@ -29,6 +29,8 @@ class SheetsService:
     def salvar(self, lista_de_dicionarios: list) -> list:
         if not lista_de_dicionarios:
             return []
+        
+        logger.debug(f"[salvar] Registro de salvamento de pedidos: {lista_de_dicionarios}")
 
         novo_id = self._obter_proximo_id()
 
@@ -78,6 +80,9 @@ class SheetsService:
             return None
             
         linhas_do_pedido, indices, soma_valor_total, entrada_atual = dados
+
+        logger.debug(f"Valor entrada: {entrada_atual}")
+        logger.debug(f"Valor total: {soma_valor_total}")
         
         if entrada_atual >= soma_valor_total:
             novo_status = "Pago"
@@ -92,6 +97,41 @@ class SheetsService:
         
         return {"id": id_pedido, "status": novo_status, "valor": entrada_acumulada_formatada}
     
+
+    def buscar_ids_abertos_com_saldo(self, nome_cliente):
+        dados = self.sheet.get_all_records(expected_headers=self.cabecalhos_normalizados[:12])
+        logger.debug(f"Quantidade de dados coletados: {len(dados)}")
+
+        pedidos_pendentes = {}  # Vai guardar no formato: {"teste 02": 50.00, "teste 03": 120.00}
+
+        # Primeiro, agrupamos tudo que é desse cliente
+        for linha in dados:
+            nome_planilha = str(linha.get('CLIENTE', '')).lower().strip()
+            nome_busca = nome_cliente.lower().strip()
+            status = str(linha.get('STATUS', '')).strip()
+
+            logger.debug(f"Pedidos do cliente {nome_busca} com o status {status} sendo processado...")
+
+            if nome_planilha == nome_busca and status != "Pago":
+                id_pedido = str(linha.get('ID', ''))
+                
+                valor_item = converter_para_float(str(linha.get('VALOR TOTAL', '0')))
+                valor_entrada = converter_para_float(str(linha.get('VALOR ENTRADA', '0')))
+
+                if id_pedido not in pedidos_pendentes:
+                    pedidos_pendentes[id_pedido] = {"total": 0.0, "pago": 0.0}
+                
+                pedidos_pendentes[id_pedido]["total"] += valor_item
+                pedidos_pendentes[id_pedido]["pago"] += valor_entrada
+
+        saldos_devedores = {}
+        for id_pedido, valores in pedidos_pendentes.items():
+            falta_pagar = valores["total"] - valores["pago"]
+            if falta_pagar > 0:
+                saldos_devedores[id_pedido] = falta_pagar
+
+        return saldos_devedores
+        
 
     def _obter_dados_base_planilha(self, id_pedido: str) -> tuple | None:
         todos_os_dados = self.sheet.get_all_values()
@@ -112,6 +152,8 @@ class SheetsService:
         if not linhas_do_pedido:
             logger.warning("Não foi possível realizar a busca pela atualização...")
             return None
+        
+        logger.debug(f"[_obter_dados_base_planilha] Resumo dos dados: {linhas_do_pedido, indices, soma_valor_total, entrada_atual}")
 
         return linhas_do_pedido, indices, soma_valor_total, entrada_atual
 
@@ -122,6 +164,7 @@ class SheetsService:
         if not all(col in cabecalhos for col in colunas_necessarias):
             return None
             
+        logger.debug(f"[_obter_indices_financeiros] Colunas: {cabecalhos}")    
         return {
             "id": cabecalhos.index("ID"),
             "total": cabecalhos.index("VALOR TOTAL"),
@@ -146,12 +189,16 @@ class SheetsService:
                     
                 if len(linhas_encontradas) == 1 and len(linha_dados) > indices["entrada"]:
                     entrada_atual = converter_para_float(linha_dados[indices["entrada"]])
+
+        logger.debug(f"[_buscar_linhas_e_total] Resumo: {linhas_encontradas, soma_total, entrada_atual}")
                     
         return linhas_encontradas, soma_total, entrada_atual
+
 
     def _preparar_celulas_pagamento(self, linhas: list, indices: dict, status: str, valor: str) -> list:
         celulas = []
         for num_linha in linhas:
+            logger.debug(f"[_preparar_celulas_pagamento] Dados das células: {linhas}")
             celulas.append(gspread.Cell(row=num_linha, col=indices["status"] + 1, value=status))
             celulas.append(gspread.Cell(row=num_linha, col=indices["entrada"] + 1, value=valor))
         return celulas
@@ -183,6 +230,8 @@ class SheetsService:
         for i, dados_dict in enumerate(lista_de_dicionarios):
             linha_atual = linha_inicial + i
             
+            logger.debug(f"[_preparar_celulas] Linha atual: {dados_dict}")
+
             for index_coluna, nome_coluna in enumerate(self.cabecalhos_normalizados):
                 if nome_coluna in colunas_ignoradas:
                     continue
