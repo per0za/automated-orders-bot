@@ -15,7 +15,7 @@ def configurar_logger():
         os.makedirs(pasta_logs)
 
     logger = logging.getLogger("WhatsAppBot")
-    logger.setLevel(logging.DEBUG) 
+    logger.setLevel(logging.INFO) 
 
     if not logger.handlers:
         formato = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%d/%m/%Y %H:%M:%S')

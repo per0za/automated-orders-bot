@@ -33,8 +33,7 @@ def main():
         try:
             processar_pedidos_pendentes(bot, planilha)
 
-            # time.sleep(300)
-            time.sleep(5)
+            time.sleep(300)
             
         except KeyboardInterrupt:
             logger.info("Robô desligado pelo usuário com sucesso.")
